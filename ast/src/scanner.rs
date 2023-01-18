@@ -97,7 +97,7 @@ impl fmt::Display for Token {
         match self {
             Token::Eof => write!(f, ""),
             Token::Whitespace => write!(f, " "),
-            Token::Newline(_) => writeln!(f, "\n"),
+            Token::Newline(_) => write!(f, "\n"),
             Token::Identifier(_, s) => write!(f, "{}", s),
             Token::OpenParen(_) => write!(f, "("),
             Token::CloseParen(_) => write!(f, ")"),
