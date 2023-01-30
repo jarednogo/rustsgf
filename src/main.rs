@@ -15,5 +15,12 @@ fn main() {
     //    println!("{:?}", tok);
     //}
     let coll = ast::parser::Parser::new(&text).unwrap().parse().unwrap();
-    println!("{}", coll);
+    for gt in coll.gametrees {
+        let gt2 = gt.strip_key("PB")
+            .strip_key("PW")
+            .strip_key("BR")
+            .strip_key("WR");
+        println!("{}", gt2);
+    }
+    //println!("{}", coll);
 }

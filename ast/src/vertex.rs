@@ -11,20 +11,74 @@ pub struct GameTree {
     pub gametrees: Vec<Box<GameTree>>,
 }
 
+impl GameTree {
+    pub fn strip_key(&self, key: &str) -> Self {
+        let mut gametrees = Vec::new();
+        for gt in &self.gametrees {
+            gametrees.push(Box::new(gt.strip_key(key)));
+        }
+        GameTree{
+            sequence: self.sequence.strip_key(key),
+            gametrees: gametrees,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Sequence {
     pub nodes: Vec<Node>,
 }
 
+impl Sequence {
+    pub fn strip_key(&self, key: &str) -> Self {
+        let mut nodes = Vec::new();
+        for node in &self.nodes {
+            nodes.push(node.strip_key(key));
+        }
+        Sequence{
+            nodes: nodes,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
-pub struct Node  {
+pub struct Node {
     pub props: Vec<Property>,
+}
+
+impl Node {
+    pub fn strip_key(&self, key: &str) -> Self {
+        let mut props = Vec::new();
+        for prop in &self.props {
+            props.push(prop.strip_key(key));
+        }
+        Node{
+            props: props,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Property {
     pub ident: String,
     pub values: Vec<String>,
+}
+
+impl Property {
+    pub fn strip_key(&self, key: &str) -> Self {
+        let mut values = Vec::new();
+        if self.ident.as_str() != key {
+            for v in &self.values {
+                values.push(v.clone().to_string());
+            }
+        } else {
+            values.push("".to_string());
+        }
+        Property{
+            ident: self.ident.clone(),
+            values: values,
+        }
+    }
 }
 
 impl fmt::Display for Collection {
