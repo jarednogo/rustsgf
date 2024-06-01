@@ -64,6 +64,12 @@ impl Parser {
     }
 
     pub fn create_error(&mut self, msg: &str) -> Error {
+        if self.tokens.len() == 0 {
+            return Error::ParseError(format!("empty file"));
+        }
+        if self.cur >= self.tokens.len() {
+            return Error::ParseError(format!("parse_error at {}: {}", self.tokens[self.tokens.len()-1].position(), msg));
+        }
         Error::ParseError(format!("parse_error at {}: {}", self.tokens[self.cur].position(), msg))
     }
 
@@ -190,6 +196,7 @@ impl Parser {
         loop {
             match self.peek(0) {
                 Token::CloseSquare(_) => break,
+                Token::Eof => return Err(self.unexpected("eof while waiting for ']'")),
                 t => {
                     s.push_str(&format!("{}", t));
                     self.read();
@@ -304,6 +311,31 @@ AB[na][ra][mb][rb][lc][qc][ld][od][qd][le][pe][qe][mf][nf][of][pg]
         "(;C[)())",
         "(;weird[])",
     */
+
+    #[test]
+    fn parse8() {
+        let text = "";
+        let collection = Parser::new(text).unwrap().parse();
+    }
+
+    #[test]
+    fn parse9() {
+        let text = "\n";
+        let collection = Parser::new(text).unwrap().parse();
+    }
+
+    #[test]
+    fn parse10() {
+        let text = "\x28\x0a\x3b";
+        let collection = Parser::new(text).unwrap().parse();
+    }
+
+    #[test]
+    fn parse11() {
+        let text = "(;A[";
+        let collection = Parser::new(text).unwrap().parse();
+    }
+
 
 
 }

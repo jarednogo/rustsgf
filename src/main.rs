@@ -1,6 +1,8 @@
 use std::fs;
 use std::env;
 
+use sgf::parser::Parser;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
@@ -10,11 +12,11 @@ fn main() {
 
     //let text = fs::read_to_string("examples/5.sgf").unwrap();
     let text = fs::read_to_string(&args[1]).unwrap();
-    //let tokens = ast::scanner::Scanner::new(&text).scan().unwrap();
+    //let tokens = scanner::Scanner::new(&text).scan().unwrap();
     //for tok in tokens {
     //    println!("{:?}", tok);
     //}
-    let coll = ast::parser::Parser::new(&text).unwrap().parse().unwrap();
+    let coll = Parser::new(&text).unwrap().parse().unwrap();
     for gt in coll.gametrees {
         let gt2 = gt.strip_key("PB")
             .strip_key("PW")

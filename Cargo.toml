@@ -5,12 +5,6 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[workspace]
-members = ["."]
-
-[dependencies]
-ast = { version = "^0", path = "ast" }
-
 [[bin]]
 name = "sgf"
 path = "src/main.rs"
