@@ -49,6 +49,7 @@ pub enum Token {
     Newline(Position),
 
     Identifier(Position, String),
+    UcLetter(Position, String),
 
     // symbols
     OpenParen(Position),
@@ -64,6 +65,7 @@ pub enum Token {
     Escaped(Position, String),
 
     Ascii(Position, String),
+    Bytes(Position, String),
 
     /*
     UcLetter(Position, String),
@@ -78,6 +80,7 @@ impl Token {
             Token::Eof => Position {row: 0, col: 0},
             Token::Whitespace => Position {row: 0, col: 0},
             Token::Identifier(pos, _) => *pos,
+            Token::UcLetter(pos, _) => *pos,
             Token::Newline(pos) => *pos,
             Token::OpenParen(pos) => *pos,
             Token::CloseParen(pos) => *pos,
@@ -88,6 +91,7 @@ impl Token {
             Token::Integer(pos, _) => *pos,
             Token::Escaped(pos, _) => *pos,
             Token::Ascii(pos, _) => *pos,
+            Token::Bytes(pos, _) => *pos,
         }
     }
 }
@@ -99,6 +103,7 @@ impl fmt::Display for Token {
             Token::Whitespace => write!(f, " "),
             Token::Newline(_) => write!(f, "\n"),
             Token::Identifier(_, s) => write!(f, "{}", s),
+            Token::UcLetter(_, s) => write!(f, "{}", s),
             Token::OpenParen(_) => write!(f, "("),
             Token::CloseParen(_) => write!(f, ")"),
             Token::OpenSquare(_) => write!(f, "["),
@@ -108,6 +113,7 @@ impl fmt::Display for Token {
             Token::Integer(_, i) => write!(f, "{}", i),
             Token::Escaped(_, s) => write!(f, "\\{}", s),
             Token::Ascii(_, s) => write!(f, "{}", s),
+            Token::Bytes(_, s) => write!(f, "{}", s),
         }
     }
 }
@@ -119,9 +125,10 @@ pub struct Scanner {
 }
 
 impl Scanner {
-    pub fn new(s: &str) -> Self {
+    pub fn new(data: &str) -> Self {
         Scanner {
-            input: s.chars().collect(),
+            //input: data.iter().map(|b| *b as char).collect::<Vec<_>>(),
+            input: data.chars().collect(),
             cur: 0,
             pos: Position {row: 1, col: 0},
         }
@@ -157,7 +164,8 @@ impl Scanner {
             'a'..='z'|'A'..='Z'|'_' => self.scan_identifier(),
             ';' => self.create_token(Token::Semicolon(self.pos)),
             '\u{20}'..='\u{7e}' => self.scan_ascii(),
-            c => Err(self.create_error(format!("invalid character: {}", c))),
+            _ => self.scan_bytes(),
+            //c => Err(self.create_error(format!("invalid character: {}", c))),
         };
         token
     }
@@ -233,6 +241,13 @@ impl Scanner {
         Ok(Token::Ascii(self.pos, s))
     }
 
+    pub fn scan_bytes(&mut self) -> Result<Token> {
+        let mut char_vec: Vec<char> = Vec::new();
+        char_vec.push(self.read());
+        let s: String = char_vec.into_iter().collect();
+        Ok(Token::Bytes(self.pos, s))
+    }
+
     pub fn scan_number(&mut self) -> Result<Token> {
         let mut char_vec: Vec<char> = Vec::new();
         loop {
@@ -247,10 +262,15 @@ impl Scanner {
     }
 
     pub fn scan_identifier(&mut self) -> Result<Token> {
+        let mut upper = true;
         let mut char_vec: Vec<char> = Vec::new();
         loop {
             let c = self.peek(0);
             if is_identifier(c) {
+                if c < 'A' || c > 'Z' {
+                    upper = false;
+                }
+
                 char_vec.push(c);
                 self.read();
             } else {
@@ -259,7 +279,13 @@ impl Scanner {
         }
         let s: String = char_vec.into_iter().collect();
         match s.as_str() {
-            _ => Ok(Token::Identifier(self.pos, s)),
+            _ => {
+                if upper {
+                    return Ok(Token::UcLetter(self.pos, s));
+                } else {
+                    return Ok(Token::Identifier(self.pos, s));
+                }
+            },
         }
     }
 }
@@ -283,31 +309,31 @@ mod tests {
     #[test]
     fn scan1() {
         let text = "(;GM[1])";
-        let tokens = Scanner::new(text).scan().unwrap();
+        let _ = Scanner::new(text).scan().unwrap();
     }
 
     #[test]
     fn scan2() {
 		let text = "(;GM[1]AW[ab][bc])";
-        let tokens = Scanner::new(text).scan().unwrap();
+        let _ = Scanner::new(text).scan().unwrap();
     }
 
     #[test]
     fn scan3() {
 		let text = "(;GM[1];B[cc])";
-        let tokens = Scanner::new(text).scan().unwrap();
+        let _ = Scanner::new(text).scan().unwrap();
     }
 
     #[test]
     fn scan4() {
 		let text = "(;ZZ[aoeu [1k\\]])";
-        let tokens = Scanner::new(text).scan().unwrap();
+        let _ = Scanner::new(text).scan().unwrap();
     }
     
     #[test]
     fn scan5() {
 		let text = "(;GM[1](;B[aa];W[ab])(;B[ab];W[ac]))";
-        let tokens = Scanner::new(text).scan().unwrap();
+        let _ = Scanner::new(text).scan().unwrap();
     }
 
     #[test]
@@ -328,7 +354,7 @@ CR[qa][qb][qc]
 TR[sa][sb][sc]
 SQ[ra][rb][rc]
 )";
-        let tokens = Scanner::new(text).scan().unwrap();
+        let _ = Scanner::new(text).scan().unwrap();
     }
 
     #[test]
@@ -362,7 +388,7 @@ AB[na][ra][mb][rb][lc][qc][ld][od][qd][le][pe][qe][mf][nf][of][pg]
 	;W[mc]C[White lives])
 (;B[]C[A default consideration]
 	;W[mc]C[White lives easily]))";
-        let tokens = Scanner::new(text).scan().unwrap();
+        let _ = Scanner::new(text).scan().unwrap();
     }
 
     /* error cases
@@ -375,4 +401,21 @@ AB[na][ra][mb][rb][lc][qc][ld][od][qd][le][pe][qe][mf][nf][of][pg]
         "(;C[)())",
         "(;weird[])",
     */
+
+    #[test]
+    fn scan8() {
+        let text = "
+(;GM[1]FF[4]
+SZ[19]
+GN[]
+DT[2024-04-11]
+PB[老朽006]
+PW[sokka]
+BR[5段]
+WR[5段]
+KM[375]HA[0]RU[Chinese]AP[GNU Go:3.8]RN[3]RE[B+R]TM[1200]TC[3]TT[60]AP[foxwq]RL[0]
+;B[pd];W[dd];B[pq];W[dq];B[fc];W[hc];B[cc];W[dc];B[cd];W[de];B[db];W[eb];B[cb];W[fb];B[cf];W[nc];B[qf];W[ne];B[do];W[co];B[cn];W[cp];B[dn];W[fq];B[dj];W[qo];B[op];W[eg];B[ch];W[df];B[cg];W[pg];B[qg];W[pi];B[ob];W[nb];B[pn];W[qm];B[pm];W[ql];B[jg];W[je];B[ri];W[ji];B[ih];W[ej];B[ii];W[dk];B[ek];W[cj];B[di];W[el];B[fk];W[cl];B[fm];W[em];B[fn];W[en];B[eo];W[fl];B[gl];W[gk];B[fj];W[gm];B[hl];W[fo];B[gn];W[bl];B[rp];W[ro];B[qp];W[jq];B[qj];W[pl];B[ok];W[ol];B[nn];W[nk];B[oj];W[nm];B[nj];W[mn];B[no];W[mk];B[lm];W[mm];B[ll];W[mj];B[mi];W[ln];B[kp];W[li];B[mh];W[km];B[kl];W[jl];B[jm];W[kn];B[jk];W[jn];B[hm];W[go];B[ho];W[jp];B[hq];W[im];B[ep];W[gq];B[eq];W[er];B[fr];W[gr];B[dr];W[fs];B[cq];W[bq];B[dp];W[bn];B[cm];W[dl];B[bm];W[bo];B[am];W[cr];B[br];W[dq];B[bj];W[al];B[cq];W[fi];B[ei];W[dq];B[gc];W[gb];B[cq];W[gj];B[ej];W[dq];B[hd];W[ic];B[cq];W[in];B[hn];W[dq];B[ge];W[ec];B[cq];W[ci];B[bi];W[dq];B[ck];W[fp];B[cq];W[cs];B[ak];W[dq];B[bk];W[hf];B[gg];W[gf];B[fg];W[ff];B[hg];W[lf];B[kq];W[lh];B[qk];W[mg];B[pb];W[kk];B[jj];W[ni];B[na];W[ma];B[oa];W[lb];B[if];W[ie];B[il];W[jm];B[kj];W[lk];B[jr];W[ir];B[kr])";
+        let _ = Scanner::new(text).scan().unwrap();
+    }
+
 }

@@ -34,8 +34,8 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(s: &str) -> Result<Self> {
-        let tokens = Scanner::new(s).scan()?;
+    pub fn new(data: &str) -> Result<Self> {
+        let tokens = Scanner::new(data).scan()?;
         let p = Parser {
             tokens: tokens,
             cur: 0,
@@ -90,6 +90,17 @@ impl Parser {
     pub fn parse(&mut self) -> Result<Collection> {
         self.consume_whitespace();
         let mut gametrees = Vec::new();
+
+        // apparently kgs is ok with sgf files with garbage at the beginning
+        // so i guess we'll do that too why not
+        loop {
+            match self.peek(0) {
+                Token::OpenParen(_) => break,
+                Token::Eof => break,
+                _ => self.read(),
+            };
+        }
+
         loop {
             match self.peek(0) {
                 Token::OpenParen(_) => gametrees.push(self.parse_gametree()?),
@@ -151,7 +162,7 @@ impl Parser {
         let mut props = Vec::new();
         loop {
             match self.peek(0) {
-                Token::Identifier(..) => {
+                Token::UcLetter(..) => {
                     props.push(self.parse_property()?);
                     self.consume_whitespace();
                 }
@@ -182,8 +193,8 @@ impl Parser {
 
     pub fn parse_propident(&mut self) -> Result<String> {
         match self.read() {
-            Token::Identifier(_, s) => Ok(s),
-            _ => Err(self.create_error("expected identifier")),
+            Token::UcLetter(_, s) => Ok(s),
+            _ => Err(self.create_error("expected uppercase identifier")),
         }
     }
 
@@ -219,31 +230,31 @@ mod tests {
     #[test]
     fn parse1() {
         let text = "(;GM[1])";
-        let collection = Parser::new(text).unwrap().parse().unwrap();
+        let _ = Parser::new(text).unwrap().parse().unwrap();
     }
 
     #[test]
     fn parse2() {
 		let text = "(;GM[1]AW[ab][bc])";
-        let collection = Parser::new(text).unwrap().parse().unwrap();
+        let _ = Parser::new(text).unwrap().parse().unwrap();
     }
 
     #[test]
     fn parse3() {
 		let text = "(;GM[1];B[cc])";
-        let collection = Parser::new(text).unwrap().parse().unwrap();
+        let _ = Parser::new(text).unwrap().parse().unwrap();
     }
 
     #[test]
     fn parse4() {
 		let text = "(;ZZ[aoeu [1k\\]])";
-        let collection = Parser::new(text).unwrap().parse().unwrap();
+        let _ = Parser::new(text).unwrap().parse().unwrap();
     }
     
     #[test]
     fn parse5() {
 		let text = "(;GM[1](;B[aa];W[ab])(;B[ab];W[ac]))";
-        let collection = Parser::new(text).unwrap().parse().unwrap();
+        let _ = Parser::new(text).unwrap().parse().unwrap();
     }
 
     #[test]
@@ -264,7 +275,7 @@ CR[qa][qb][qc]
 TR[sa][sb][sc]
 SQ[ra][rb][rc]
 )";
-        let collection = Parser::new(text).unwrap().parse().unwrap();
+        let _ = Parser::new(text).unwrap().parse().unwrap();
     }
 
     #[test]
@@ -298,7 +309,7 @@ AB[na][ra][mb][rb][lc][qc][ld][od][qd][le][pe][qe][mf][nf][of][pg]
 	;W[mc]C[White lives])
 (;B[]C[A default consideration]
 	;W[mc]C[White lives easily]))";
-        let collection = Parser::new(text).unwrap().parse().unwrap();
+        let _ = Parser::new(text).unwrap().parse().unwrap();
     }
 
     /* error cases
@@ -315,27 +326,48 @@ AB[na][ra][mb][rb][lc][qc][ld][od][qd][le][pe][qe][mf][nf][of][pg]
     #[test]
     fn parse8() {
         let text = "";
-        let collection = Parser::new(text).unwrap().parse();
+        if let Ok(_) = Parser::new(text).unwrap().parse() {
+            panic!();
+        }
     }
 
     #[test]
     fn parse9() {
         let text = "\n";
-        let collection = Parser::new(text).unwrap().parse();
+        if let Ok(_) = Parser::new(text).unwrap().parse() {
+            panic!();
+        }
     }
 
     #[test]
     fn parse10() {
         let text = "\x28\x0a\x3b";
-        let collection = Parser::new(text).unwrap().parse();
+        if let Ok(_) = Parser::new(text).unwrap().parse() {
+            panic!();
+        }
     }
 
     #[test]
     fn parse11() {
         let text = "(;A[";
-        let collection = Parser::new(text).unwrap().parse();
+        if let Ok(_) = Parser::new(text).unwrap().parse(){
+            panic!();
+        }
     }
 
+    #[test]
+    fn parse12() {
+        let text = "(;gm[1])";
+        if let Ok(_) = Parser::new(text).unwrap().parse() {
+            panic!();
+        }
+    }
 
-
+    #[test]
+    fn parse13() {
+        let text = "(;[1])";
+        if let Ok(_) = Parser::new(text).unwrap().parse() {
+            panic!();
+        }
+    }
 }
